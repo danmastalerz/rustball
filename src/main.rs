@@ -46,7 +46,8 @@ pub struct Score {
 }
 
 
-
+#[derive(Component)]
+struct ScoreText(String);
 
 
 fn main() {
@@ -85,14 +86,37 @@ fn init_game_system(
     // Init camera.
     commands.spawn_bundle(OrthographicCameraBundle::new_2d());
 
-    // // Textures
-    // let game_textures = GameTextures {
-    //     player_red: asset_server.load(PLAYER_RED_SPRITE),
-    //     player_blue: asset_server.load(PLAYER_BLUE_SPRITE),
-    //     ball: asset_server.load(BALL_SPRITE),
-    // };
-    //
-    // commands.insert_resource(game_textures);
+    let font = asset_server.load("fonts/FiraSans-Regular.ttf");
+    let text_style = TextStyle {
+        font,
+        font_size: 60.0,
+        color: Color::WHITE,
+    };
+    let text_alignment = TextAlignment {
+        vertical: VerticalAlign::Center,
+        horizontal: HorizontalAlign::Center,
+    };
+
+    // Show score on the screen (on the top left corner)
+    let score_text = String::from("Score: 0–0");
+    commands
+        .spawn_bundle(Text2dBundle {
+            text: Text {
+                sections: vec![TextSection {
+                    value: score_text,
+                    style: text_style.clone(),
+                    ..Default::default()
+                }],
+                alignment: text_alignment.clone(),
+            },
+            transform: Transform::from_translation(vec3(-1024.0 / 2. + 125., -768.2 / 2. + 50., 2.0)),
+            global_transform: Default::default(),
+            text_2d_size: Default::default(),
+            text_2d_bounds: Default::default(),
+            visibility: Visibility {
+                is_visible: true,
+            }
+        });
 
     // Set background as PITCH1_SPRITE
     let pitch1 = asset_server.load(PITCH1_SPRITE);
@@ -112,7 +136,8 @@ fn init_game_system(
         blue: 0,
     });
 
-    // Show score on the screen (on the top left corner)
+
+
 
 
 
@@ -472,12 +497,19 @@ fn goal_system(
     mut query_ball: Query<(Entity, &mut Velocity, &mut Transform, &Ball)>,
     mut query_players: Query<(Entity, &mut Velocity, &mut Transform), Without<Ball>>,
     mut score: ResMut<Score>,
+    mut score_text: Query<(&mut Text)>,
 ) {
     // Get tuple from query
     let (entity_ball, mut velocity_ball, mut transform_ball, _) = query_ball.iter_mut().next().unwrap();
 
+    // Get text from score_text
+    let mut text = score_text.iter_mut().next().unwrap();
+
+
+
     if transform_ball.translation.x >= 1024. / 2. {
         score.red += 1;
+        text.sections[0].value = format!("Score: {}–{}", score.red, score.blue);
         println!("Red score: {}", score.red);
         transform_ball.translation.x = 0.;
         transform_ball.translation.y = 0.;
@@ -494,6 +526,7 @@ fn goal_system(
         }
     } else if transform_ball.translation.x <= -1024. / 2. {
         score.blue += 1;
+        text.sections[0].value = format!("Score: {}–{}", score.red, score.blue);
         println!("Blue score: {}", score.blue);
         transform_ball.translation.x = 0.;
         transform_ball.translation.y = 0.;
@@ -510,5 +543,17 @@ fn goal_system(
             transform.translation.y = 0.;
         }
     }
+
+    if score.red == 3 {
+        score.red = 0;
+        score.blue = 0;
+        text.sections[0].value = "Red Wins!".to_string();
+    }
+    else if score.blue == 3 {
+        score.red = 0;
+        score.blue = 0;
+        text.sections[0].value = "Blue Wins!".to_string();
+    }
+
 
 }
