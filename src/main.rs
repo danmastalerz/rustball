@@ -369,24 +369,59 @@ fn collision_system_blue(
 }
 
 
+fn handle_collision(velocity_red : &mut Velocity, velocity_blue : &mut Velocity, transform_red : &mut Transform, transform_blue : &mut Transform) {
+    let delta = (transform_red.translation - transform_blue.translation).truncate();
+    let players_distance = transform_red.translation.distance(transform_blue.translation);
+    println!("delta: {:?}", delta);
+    let d = players_distance.clone();
+    let multiplier = (-d + PLAYER_RADIUS * 2.0) / d;
+    let delta_x = delta.x * multiplier;
+    let delta_y = delta.y * multiplier;
+    let mtd = Vec2::new(delta_x, delta_y);
+
+    let im1 = 1.;
+    let im2 = 1.;
+    // TODO push-pull them apart
+    transform_red.translation.x += mtd[0] * (im1 / (im1 + im2));
+    transform_red.translation.y += mtd[1] * (im1 / (im1 + im2));
+
+    transform_blue.translation.x -= mtd[0] * (im2 / (im1 + im2));
+    transform_blue.translation.y -= mtd[1] * (im2 / (im1 + im2));
+
+    //impact speed
+    let v = Vec2::new(velocity_red.x - velocity_blue.x, velocity_red.y - velocity_blue.y);
+    let vn = v.dot(mtd.normalize());
+
+
+
+    if vn > 0.0 {
+        return;
+    }
+
+    // collision impulse
+    let i = (-(1.0 + 0.5) * vn) / (im1 + im2);
+    let impulse = mtd.normalize() * i;
+
+    //change in momentum
+    velocity_red.x += impulse[0] * im1;
+    velocity_red.y += impulse[1] * im1;
+
+    velocity_blue.x -= impulse[0] * im2;
+    velocity_blue.y -= impulse[1] * im2;
+}
+
 fn players_collision_system(
-    mut query_red: Query<(Entity, &mut Velocity, &Transform, &PlayerRed), Without<PlayerBlue>>,
-    mut query_blue: Query<(Entity, &mut Velocity, &Transform, &PlayerBlue), Without<PlayerRed>>,
+    mut query_red: Query<(Entity, &mut Velocity, &mut Transform, &PlayerRed), Without<PlayerBlue>>,
+    mut query_blue: Query<(Entity, &mut Velocity, &mut Transform, &PlayerBlue), Without<PlayerRed>>,
 ) {
-    let (entity_red, mut velocity_red, transform_red, _) = query_red.iter_mut().next().unwrap();
-    let (entity_blue, mut velocity_blue, transform_blue, _) = query_blue.iter_mut().next().unwrap();
+    let (entity_red, mut velocity_red, mut transform_red, _) = query_red.iter_mut().next().unwrap();
+    let (entity_blue, mut velocity_blue, mut transform_blue, _) = query_blue.iter_mut().next().unwrap();
 
     // If player red and player blue collide
     let players_distance = transform_red.translation.distance(transform_blue.translation);
     if players_distance <= PLAYER_RADIUS * 2.0 {
-        //swap velocity
-        let temp_velocity = velocity_red.x;
-        velocity_red.x = velocity_blue.x;
-        velocity_blue.x = temp_velocity;
-
-        let temp_velocity = velocity_red.y;
-        velocity_red.y = velocity_blue.y;
-        velocity_blue.y = temp_velocity;
+        println!("Collision");
+        handle_collision(&mut velocity_red, &mut velocity_blue, &mut transform_red, &mut transform_blue);
 
     };
 
