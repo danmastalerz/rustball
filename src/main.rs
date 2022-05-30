@@ -292,89 +292,12 @@ fn movement_system(
     };
 }
 
-fn collision_system_red(
-    mut query_red: Query<(Entity, &mut Velocity, &Transform, &PlayerRed), Without<Ball>>,
-    mut query_ball: Query<(Entity, &mut Velocity, &Transform, &Ball, Without<PlayerRed>)>,
-    kb: Res<Input<KeyCode>>,
-) {
-    let (entity_red, mut velocity_red, transform_red, _) = query_red.iter_mut().next().unwrap();
-    let (entity_ball, mut velocity_ball, transform_ball, _, _) = query_ball.iter_mut().next().unwrap();
-
-    // If player red and ball collide
-    let player_ball_distance = transform_red.translation.distance(transform_ball.translation);
-    if player_ball_distance <= PLAYER_RADIUS + BALL_RADIUS {
-        println!("Collision");
-        let a = velocity_red.x;
-        let b = velocity_ball.x;
-
-        velocity_red.x = (a + 2. * b) / 3.0;
-        velocity_ball.x = (4. * a - b) / 3.0;
-
-        let a = velocity_red.y;
-        let b = velocity_ball.y;
-
-        velocity_red.y = (a + 2. * b) / 3.0;
-        velocity_ball.y = (4. * a - b) / 3.0;
-
-        // If space pressed, shoot the ball
-        if kb.pressed(KeyCode::Space) {
-            println!("Shoot");
-            let diff_x = transform_red.translation.x - transform_ball.translation.x;
-            let diff_y = transform_red.translation.y - transform_ball.translation.y;
-            let angle = diff_y.atan2(diff_x);
-            println!("{}", angle);
-            velocity_ball.y += -5.0 * angle.sin();
-            velocity_ball.x += -5.0 * angle.cos();
-        }
-
-    }
-}
-
-fn collision_system_blue(
-    mut query_blue: Query<(Entity, &mut Velocity, &Transform, &PlayerBlue), Without<Ball>>,
-    mut query_ball: Query<(Entity, &mut Velocity, &Transform, &Ball, Without<PlayerBlue>)>,
-    kb: Res<Input<KeyCode>>,
-) {
-    let (entity_blue, mut velocity_blue, transform_blue, _) = query_blue.iter_mut().next().unwrap();
-    let (entity_ball, mut velocity_ball, transform_ball, _, _) = query_ball.iter_mut().next().unwrap();
-
-    // If player blue and ball collide
-    let player_ball_distance = transform_blue.translation.distance(transform_ball.translation);
-    if player_ball_distance <= PLAYER_RADIUS + BALL_RADIUS {
-        println!("Collision");
-        let a = velocity_blue.x;
-        let b = velocity_ball.x;
-
-        velocity_blue.x = (a + 2. * b) / 3.0;
-        velocity_ball.x = (4. * a - b) / 3.0;
-
-        let a = velocity_blue.y;
-        let b = velocity_ball.y;
-
-        velocity_blue.y = (a + 2. * b) / 3.0;
-        velocity_ball.y = (4. * a - b) / 3.0;
-
-        // If right control pressed, shoot the ball
-        if kb.pressed(KeyCode::RControl) {
-            println!("Shoot");
-            let diff_x = transform_blue.translation.x - transform_ball.translation.x;
-            let diff_y = transform_blue.translation.y - transform_ball.translation.y;
-            let angle = diff_y.atan2(diff_x);
-            println!("{}", angle);
-            velocity_ball.y += -5.0 * angle.sin();
-            velocity_ball.x += -5.0 * angle.cos();
-        }
-
-    }
-}
-
-
-fn handle_collision(velocity_red : &mut Velocity, velocity_blue : &mut Velocity, transform_red : &mut Transform, transform_blue : &mut Transform) {
+// Inspired with: https://stackoverflow.com/questions/345838/ball-to-ball-collision-detection-and-handling
+fn handle_collision(velocity_red : &mut Velocity, velocity_blue : &mut Velocity, transform_red : &mut Transform, transform_blue : &mut Transform, radius1: f32, radius2: f32) {
     let delta = (transform_red.translation - transform_blue.translation).truncate();
     let players_distance = transform_red.translation.distance(transform_blue.translation);
-    println!("delta: {:?}", delta);
     let d = players_distance.clone();
-    let multiplier = (-d + PLAYER_RADIUS * 2.0) / d;
+    let multiplier = (-d + radius1 + radius2) / d;
     let delta_x = delta.x * multiplier;
     let delta_y = delta.y * multiplier;
     let mtd = Vec2::new(delta_x, delta_y);
@@ -402,13 +325,70 @@ fn handle_collision(velocity_red : &mut Velocity, velocity_blue : &mut Velocity,
     let i = (-(1.0 + 0.5) * vn) / (im1 + im2);
     let impulse = mtd.normalize() * i;
 
+
     //change in momentum
     velocity_red.x += impulse[0] * im1;
     velocity_red.y += impulse[1] * im1;
 
     velocity_blue.x -= impulse[0] * im2;
     velocity_blue.y -= impulse[1] * im2;
+
+
 }
+
+fn collision_system_red(
+    mut query_red: Query<(Entity, &mut Velocity, &mut Transform, &PlayerRed), Without<Ball>>,
+    mut query_ball: Query<(Entity, &mut Velocity, &mut Transform, &Ball, Without<PlayerRed>)>,
+    kb: Res<Input<KeyCode>>,
+) {
+    let (entity_red, mut velocity_red, mut transform_red, _) = query_red.iter_mut().next().unwrap();
+    let (entity_ball, mut velocity_ball, mut transform_ball, _, _) = query_ball.iter_mut().next().unwrap();
+
+    // If player red and ball collide
+    let player_ball_distance = transform_red.translation.distance(transform_ball.translation);
+    if player_ball_distance < PLAYER_RADIUS + BALL_RADIUS {
+        // If space pressed, shoot the ball
+        if kb.pressed(KeyCode::Space) {
+            println!("Shoot");
+            let diff_x = transform_red.translation.x - transform_ball.translation.x;
+            let diff_y = transform_red.translation.y - transform_ball.translation.y;
+            let angle = diff_y.atan2(diff_x);
+            println!("{}", angle);
+            velocity_ball.y += -5.0 * angle.sin();
+            velocity_ball.x += -5.0 * angle.cos();
+        }
+        handle_collision(&mut velocity_red, &mut velocity_ball, &mut transform_red, &mut transform_ball, PLAYER_RADIUS, BALL_RADIUS);
+    }
+
+}
+
+fn collision_system_blue(
+    mut query_blue: Query<(Entity, &mut Velocity, &mut Transform, &PlayerBlue), Without<Ball>>,
+    mut query_ball: Query<(Entity, &mut Velocity, &mut Transform, &Ball, Without<PlayerBlue>)>,
+    kb: Res<Input<KeyCode>>,
+) {
+    let (entity_blue, mut velocity_blue, mut transform_blue, _) = query_blue.iter_mut().next().unwrap();
+    let (entity_ball, mut velocity_ball, mut transform_ball, _, _) = query_ball.iter_mut().next().unwrap();
+
+    // If player blue and ball collide
+    let player_ball_distance = transform_blue.translation.distance(transform_ball.translation);
+    if player_ball_distance < PLAYER_RADIUS + BALL_RADIUS {
+        // If right control pressed, shoot the ball
+        if kb.pressed(KeyCode::RControl) {
+            let diff_x = transform_blue.translation.x - transform_ball.translation.x;
+            let diff_y = transform_blue.translation.y - transform_ball.translation.y;
+            let angle = diff_y.atan2(diff_x);
+            velocity_ball.y += -5.0 * angle.sin();
+            velocity_ball.x += -5.0 * angle.cos();
+        }
+
+        handle_collision(&mut velocity_blue, &mut velocity_ball, &mut transform_blue, &mut transform_ball, PLAYER_RADIUS, BALL_RADIUS);
+
+    }
+}
+
+
+
 
 fn players_collision_system(
     mut query_red: Query<(Entity, &mut Velocity, &mut Transform, &PlayerRed), Without<PlayerBlue>>,
@@ -419,9 +399,8 @@ fn players_collision_system(
 
     // If player red and player blue collide
     let players_distance = transform_red.translation.distance(transform_blue.translation);
-    if players_distance <= PLAYER_RADIUS * 2.0 {
-        println!("Collision");
-        handle_collision(&mut velocity_red, &mut velocity_blue, &mut transform_red, &mut transform_blue);
+    if players_distance < PLAYER_RADIUS * 2.0 {
+        handle_collision(&mut velocity_red, &mut velocity_blue, &mut transform_red, &mut transform_blue, PLAYER_RADIUS, PLAYER_RADIUS);
 
     };
 
