@@ -47,9 +47,8 @@ fn handle_start_game(
 ) {
    // If button clicked, change state
     for (interaction, item) in query.iter() {
-        match interaction {
-            Interaction::Clicked => {
-                match item {
+        if interaction == &Interaction::Clicked {
+            match item {
                     MenuItem::Start => {
                         app_state.set(GameState::InGame).expect("Something went wrong!");
                     }
@@ -77,9 +76,8 @@ fn handle_start_game(
                 }
 
             }
-            _ => {}
         }
-    }
+
 }
 
 fn spawn_button(parent: &mut ChildBuilder, asset_server: &Res<AssetServer>, item: MenuItem) {

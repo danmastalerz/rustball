@@ -20,6 +20,8 @@ const BALL_RADIUS: f32 = 10.0;
 const CORNER_RADIUS: f32 = 10.0;
 const RED_INITIAL_X: f32 = -200.0;
 const BLUE_INITIAL_X: f32 = 200.0;
+const WINDOW_WIDTH: f32 = 1024.0;
+const WINDOW_HEIGHT: f32 = 768.0;
 
 // Components
 #[derive(Component)]
@@ -62,8 +64,8 @@ fn main() {
         .insert_resource(ClearColor(Color::rgb(0.04, 0.04, 0.04)))
         .insert_resource(WindowDescriptor {
             title: "RustBall".to_string(),
-            width: 1024.0,
-            height: 768.0,
+            width: WINDOW_WIDTH,
+            height: WINDOW_HEIGHT,
             resizable: false,
             ..Default::default()
         })
@@ -129,12 +131,11 @@ fn init_game_system(
             text: Text {
                 sections: vec![TextSection {
                     value: score_text,
-                    style: text_style.clone(),
-                    ..Default::default()
+                    style: text_style,
                 }],
-                alignment: text_alignment.clone(),
+                alignment: text_alignment,
             },
-            transform: Transform::from_translation(vec3(-1024.0 / 2. + 125., -768.2 / 2. + 50., 2.0)),
+            transform: Transform::from_translation(vec3(-WINDOW_WIDTH / 2. + 125., -WINDOW_HEIGHT / 2. + 50., 2.0)),
             global_transform: Default::default(),
             text_2d_size: Default::default(),
             text_2d_bounds: Default::default(),
@@ -334,7 +335,7 @@ fn movement_system(
 fn handle_collision(velocity_red : &mut Velocity, velocity_blue : &mut Velocity, transform_red : &mut Transform, transform_blue : &mut Transform, radius1: f32, radius2: f32) {
     let delta = (transform_red.translation - transform_blue.translation).truncate();
     let players_distance = transform_red.translation.distance(transform_blue.translation);
-    let d = players_distance.clone();
+    let d = players_distance;
     let multiplier = (-d + radius1 + radius2) / d;
     let delta_x = delta.x * multiplier;
     let delta_y = delta.y * multiplier;
@@ -447,10 +448,10 @@ fn players_collision_system(
 fn corner_collision_system(
     mut query: Query<(&mut Velocity, &Transform, &Radius)>
 ) {
-    let corner1 = Vec3::new(- 1024. / 2., 100., 5.);
-    let corner2 = Vec3::new(1024. / 2., 100., 5.);
-    let corner3 = Vec3::new(1024. / 2., -100., 5.);
-    let corner4 = Vec3::new(- 1024. / 2., -100., 5.);
+    let corner1 = Vec3::new(- WINDOW_WIDTH / 2., 100., 5.);
+    let corner2 = Vec3::new(WINDOW_WIDTH / 2., 100., 5.);
+    let corner3 = Vec3::new(WINDOW_WIDTH / 2., -100., 5.);
+    let corner4 = Vec3::new(- WINDOW_WIDTH / 2., -100., 5.);
 
 
     for (mut velocity, transform, radius) in query.iter_mut() {
@@ -484,22 +485,16 @@ fn edge_collision_system(
     mut query: Query<(&mut Velocity, &Transform, &Radius)>
 ) {
 
-    let (window_width, window_height) = (1024., 768.);
-
     for (mut velocity, transform, radius) in query.iter_mut() {
 
-        let translation = transform.translation.clone();
+        let translation = transform.translation;
         let radius = radius.0;
 
-        if translation.x + radius >= window_width / 2. && ((translation.y >= 100.0 || translation.y <= -100.0) || radius == PLAYER_RADIUS) {
-            velocity.x = -velocity.x;
-        } else if translation.x - radius <= -window_width / 2. && ((translation.y >= 100.0 || translation.y <= -100.0) || radius == PLAYER_RADIUS){
+        if (translation.x + radius >= WINDOW_WIDTH / 2. || translation.x - radius <= -WINDOW_WIDTH / 2.)  && ((translation.y >= 100.0 || translation.y <= -100.0) || radius == PLAYER_RADIUS) {
             velocity.x = -velocity.x;
         }
 
-        if translation.y + radius >= window_height / 2. && ((translation.y >= 100.0 || translation.y <= -100.0) || radius == PLAYER_RADIUS) {
-            velocity.y = -velocity.y;
-        } else if translation.y - radius <= -window_height / 2. && ((translation.y >= 100.0 || translation.y <= -100.0) || radius == PLAYER_RADIUS) {
+        if (translation.y + radius >= WINDOW_HEIGHT / 2. || translation.y - radius <= -WINDOW_HEIGHT / 2.) && ((translation.y >= 100.0 || translation.y <= -100.0) || radius == PLAYER_RADIUS) {
             velocity.y = -velocity.y;
         }
     }
@@ -519,8 +514,8 @@ fn goal_system(
 
 
 
-    if transform_ball.translation.x >= 1024. / 2. || transform_ball.translation.x <= -1024. / 2. {
-        if transform_ball.translation.x >= 1024. / 2. {
+    if transform_ball.translation.x >= WINDOW_WIDTH / 2. || transform_ball.translation.x <= -WINDOW_WIDTH / 2. {
+        if transform_ball.translation.x >= WINDOW_WIDTH / 2. {
             score.red += 1;
         } else {
             score.blue += 1;
@@ -536,7 +531,7 @@ fn goal_system(
         for (mut velocity, mut transform) in query_players.iter_mut() {
             velocity.x = 0.;
             velocity.y = 0.;
-            transform.translation.x = i.clone();
+            transform.translation.x = i;
             i += 2.0 * BLUE_INITIAL_X;
             transform.translation.y = 0.;
         }
