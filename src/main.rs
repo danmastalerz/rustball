@@ -14,12 +14,9 @@ const PITCH2_SPRITE: &str = "pitch2.png";
 const PITCH3_SPRITE: &str = "pitch3.png";
 
 // Constants
-const SCALE : f32 = 0.5;
 const MAX_SPEED: f32 = 3.0;
 const PLAYER_RADIUS: f32 = 25.0;
 const BALL_RADIUS: f32 = 10.0;
-const BALL_MASS: f32 = 1.0;
-const PLAYER_MASS: f32 = 2.0;
 const CORNER_RADIUS: f32 = 10.0;
 
 // Components
@@ -30,14 +27,10 @@ pub struct Velocity {
 }
 
 #[derive(Component)]
-struct PlayerRed {
-    pub score: i32,
-}
+struct PlayerRed;
 
 #[derive(Component)]
-struct PlayerBlue {
-    pub score: i32,
-}
+struct PlayerBlue;
 
 #[derive(Component)]
 struct Ball;
@@ -50,7 +43,6 @@ pub struct Score {
     pub red: i32,
     pub blue: i32,
 }
-
 
 #[derive(Component)]
 struct ScoreText(String);
@@ -183,29 +175,24 @@ fn spawn_players_system(
     asset_server: Res<AssetServer>,
 ) {
     // Spawn red circle that'll be representing first player.
-    commands.spawn_bundle((SpriteBundle {
+    commands.spawn_bundle(SpriteBundle {
         texture: asset_server.load(PLAYER_RED_SPRITE),
         //Move the player to the left side.
         transform: Transform::from_translation(Vec3::new(-200.0, 0.0, 5.0)),
 
         ..Default::default()
-    })).insert(PlayerRed {
-        score: 0,
-
-    }).insert(Velocity {
+    }).insert(PlayerRed).insert(Velocity {
         x: 0.0,
         y: 0.0,
     }).insert(Radius(PLAYER_RADIUS));
 
     // Spawn blue circle that'll be representing second player.
-    commands.spawn_bundle((SpriteBundle {
+    commands.spawn_bundle(SpriteBundle {
         texture: asset_server.load(PLAYER_BLUE_SPRITE),
         //Move the player to the right side.
         transform: Transform::from_translation(Vec3::new(200.0, 0.0, 5.0)),
         ..Default::default()
-    })).insert(PlayerBlue {
-        score: 0,
-    }).insert(Velocity {
+    }).insert(PlayerBlue).insert(Velocity {
         x: 0.0,
         y: 0.0,
     }).insert(Radius(PLAYER_RADIUS));
@@ -216,12 +203,12 @@ fn spawn_ball_system(
     asset_server: Res<AssetServer>,
 ) {
     // Spawn ball.
-    commands.spawn_bundle((SpriteBundle {
+    commands.spawn_bundle(SpriteBundle {
         texture: asset_server.load(BALL_SPRITE),
         //Move the ball to the center of the screen.
         transform: Transform::from_translation(Vec3::new(0.0, 0.0, 5.0)),
         ..Default::default()
-    })).insert(Ball).insert(Velocity {
+    }).insert(Ball).insert(Velocity {
         x: 0.0,
         y: 0.0,
     }).insert(Radius(BALL_RADIUS));
@@ -526,7 +513,7 @@ fn goal_system(
     mut query_ball: Query<(&mut Velocity, &mut Transform, &Ball)>,
     mut query_players: Query<(&mut Velocity, &mut Transform), Without<Ball>>,
     mut score: ResMut<Score>,
-    mut score_text: Query<(&mut Text)>,
+    mut score_text: Query<&mut Text>,
 ) {
     // Get tuple from query
     let (mut velocity_ball, mut transform_ball, _) = query_ball.iter_mut().next().unwrap();
