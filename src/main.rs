@@ -18,6 +18,8 @@ const MAX_SPEED: f32 = 3.0;
 const PLAYER_RADIUS: f32 = 25.0;
 const BALL_RADIUS: f32 = 10.0;
 const CORNER_RADIUS: f32 = 10.0;
+const RED_INITIAL_X: f32 = -200.0;
+const BLUE_INITIAL_X: f32 = 200.0;
 
 // Components
 #[derive(Component)]
@@ -170,6 +172,8 @@ fn init_game_system(
 
 }
 
+
+
 fn spawn_players_system(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
@@ -178,7 +182,7 @@ fn spawn_players_system(
     commands.spawn_bundle(SpriteBundle {
         texture: asset_server.load(PLAYER_RED_SPRITE),
         //Move the player to the left side.
-        transform: Transform::from_translation(Vec3::new(-200.0, 0.0, 5.0)),
+        transform: Transform::from_translation(Vec3::new(RED_INITIAL_X, 0.0, 5.0)),
 
         ..Default::default()
     }).insert(PlayerRed).insert(Velocity {
@@ -190,7 +194,7 @@ fn spawn_players_system(
     commands.spawn_bundle(SpriteBundle {
         texture: asset_server.load(PLAYER_BLUE_SPRITE),
         //Move the player to the right side.
-        transform: Transform::from_translation(Vec3::new(200.0, 0.0, 5.0)),
+        transform: Transform::from_translation(Vec3::new(BLUE_INITIAL_X, 0.0, 5.0)),
         ..Default::default()
     }).insert(PlayerBlue).insert(Velocity {
         x: 0.0,
@@ -251,16 +255,14 @@ fn player_red_keyboard_system(
         } else if kb.pressed(KeyCode::S) {
             velocity.y -= 0.1;
             velocity.y = velocity.y.max(-MAX_SPEED);
+        } else if velocity.y > 0. {
+            velocity.y -= 0.05;
+            velocity.y = velocity.y.max(-MAX_SPEED);
+        } else if velocity.y < 0. {
+            velocity.y += 0.05;
+            velocity.y = velocity.y.min(MAX_SPEED);
         }
-        else {
-            if velocity.y > 0. {
-                velocity.y -= 0.05;
-                velocity.y = velocity.y.max(-MAX_SPEED);
-            } else if velocity.y < 0. {
-                velocity.y += 0.05;
-                velocity.y = velocity.y.min(MAX_SPEED);
-            }
-        }
+
 
         if kb.pressed(KeyCode::A) {
             velocity.x -= 0.1;
@@ -268,16 +270,14 @@ fn player_red_keyboard_system(
         } else if kb.pressed(KeyCode::D) {
             velocity.x += 0.1;
             velocity.x = velocity.x.min(MAX_SPEED);
+        } else if velocity.x > 0. {
+            velocity.x -= 0.05;
+            velocity.x = velocity.x.max(-MAX_SPEED);
+        } else if velocity.x < 0. {
+            velocity.x += 0.05;
+            velocity.x = velocity.x.min(MAX_SPEED);
         }
-        else {
-            if velocity.x > 0. {
-                velocity.x -= 0.05;
-                velocity.x = velocity.x.max(-MAX_SPEED);
-            } else if velocity.x < 0. {
-                velocity.x += 0.05;
-                velocity.x = velocity.x.min(MAX_SPEED);
-            }
-        }
+
 
 
     }
@@ -294,16 +294,14 @@ fn player_blue_keyboard_system(
         } else if kb.pressed(KeyCode::Down) {
             velocity.y -= 0.1;
             velocity.y = velocity.y.max(-MAX_SPEED);
-        }
-        else {
-            if velocity.y > 0. {
-                velocity.y -= 0.05;
-                velocity.y = velocity.y.max(-MAX_SPEED);
-            } else if velocity.y < 0. {
-                velocity.y += 0.05;
-                velocity.y = velocity.y.min(MAX_SPEED);
+        } else if velocity.y > 0. {
+            velocity.y -= 0.05;
+            velocity.y = velocity.y.max(-MAX_SPEED);
+        } else if velocity.y < 0. {
+            velocity.y += 0.05;
+            velocity.y = velocity.y.min(MAX_SPEED);
             }
-        }
+
 
         if kb.pressed(KeyCode::Left) {
             velocity.x -= 0.1;
@@ -311,16 +309,14 @@ fn player_blue_keyboard_system(
         } else if kb.pressed(KeyCode::Right) {
             velocity.x += 0.1;
             velocity.x = velocity.x.min(MAX_SPEED);
+        } else if velocity.x > 0. {
+            velocity.x -= 0.05;
+            velocity.x = velocity.x.max(-MAX_SPEED);
+        } else if velocity.x < 0. {
+            velocity.x += 0.05;
+            velocity.x = velocity.x.min(MAX_SPEED);
         }
-        else {
-            if velocity.x > 0. {
-                velocity.x -= 0.05;
-                velocity.x = velocity.x.max(-MAX_SPEED);
-            } else if velocity.x < 0. {
-                velocity.x += 0.05;
-                velocity.x = velocity.x.min(MAX_SPEED);
-            }
-        }
+
     }
 }
 
@@ -523,8 +519,12 @@ fn goal_system(
 
 
 
-    if transform_ball.translation.x >= 1024. / 2. {
-        score.red += 1;
+    if transform_ball.translation.x >= 1024. / 2. || transform_ball.translation.x <= -1024. / 2. {
+        if transform_ball.translation.x >= 1024. / 2. {
+            score.red += 1;
+        } else {
+            score.blue += 1;
+        }
         text.sections[0].value = format!("Score: {}–{}", score.red, score.blue);
         println!("Red score: {}", score.red);
         transform_ball.translation.x = 0.;
@@ -532,30 +532,12 @@ fn goal_system(
 
         velocity_ball.x = 0.;
         velocity_ball.y = 0.;
-        let mut i = -200.0;
+        let mut i = RED_INITIAL_X;
         for (mut velocity, mut transform) in query_players.iter_mut() {
             velocity.x = 0.;
             velocity.y = 0.;
             transform.translation.x = i.clone();
-            i += 400.0;
-            transform.translation.y = 0.;
-        }
-    } else if transform_ball.translation.x <= -1024. / 2. {
-        score.blue += 1;
-        text.sections[0].value = format!("Score: {}–{}", score.red, score.blue);
-        println!("Blue score: {}", score.blue);
-        transform_ball.translation.x = 0.;
-        transform_ball.translation.y = 0.;
-
-        velocity_ball.x = 0.;
-        velocity_ball.y = 0.;
-
-        let mut i = -200.0;
-        for (mut velocity, mut transform) in query_players.iter_mut() {
-            velocity.x = 0.;
-            velocity.y = 0.;
-            transform.translation.x = i.clone();
-            i += 400.0;
+            i += 2.0 * BLUE_INITIAL_X;
             transform.translation.y = 0.;
         }
     }
