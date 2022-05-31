@@ -1,4 +1,4 @@
-use crate::GameState;
+use crate::{GameState, FONT};
 use crate::{PITCH1_SPRITE, PITCH2_SPRITE, PITCH3_SPRITE};
 use bevy::app::AppExit;
 use bevy::{prelude::*, ui::FocusPolicy};
@@ -22,17 +22,17 @@ pub enum Background {
 impl Plugin for Menu {
     fn build(&self, app: &mut App) {
         app.add_startup_system(init_menu_system)
-            .add_system(handle_start_game)
+            .add_system(handle_buttons)
             .add_system_set(SystemSet::on_exit(GameState::InMenu).with_system(despawn_menu));
     }
 }
 
+// Removes all components of a menu (except Background).
 fn despawn_menu(
     mut commands: Commands,
     query: Query<Entity>,
     query_background: Query<&Background>,
 ) {
-    println!("despawning menu");
     let background = query_background.iter().next().unwrap();
     for ent in query.iter() {
         commands.entity(ent).despawn_recursive();
@@ -40,7 +40,8 @@ fn despawn_menu(
     commands.spawn().insert((*background).clone());
 }
 
-fn handle_start_game(
+// Do the action given by the pressed button.
+fn handle_buttons(
     mut app_exit_events: EventWriter<AppExit>,
     mut app_state: ResMut<State<GameState>>,
     query: Query<(&Interaction, &MenuItem), Changed<Interaction>>,
@@ -82,6 +83,7 @@ fn handle_start_game(
     }
 }
 
+// Spawns new button as the child of the given parent.
 fn spawn_button(parent: &mut ChildBuilder, asset_server: &Res<AssetServer>, item: MenuItem) {
     parent
         .spawn_bundle(ButtonBundle {
@@ -105,7 +107,7 @@ fn spawn_button(parent: &mut ChildBuilder, asset_server: &Res<AssetServer>, item
                         MenuItem::Quit => "Quit",
                     },
                     TextStyle {
-                        font: asset_server.load("fonts/FiraSans-Regular.ttf"),
+                        font: asset_server.load(FONT),
                         font_size: 40.0,
                         color: Color::rgb(0.9, 0.9, 0.9),
                     },
@@ -118,6 +120,7 @@ fn spawn_button(parent: &mut ChildBuilder, asset_server: &Res<AssetServer>, item
         .insert(item);
 }
 
+// Spawns background image as the child of the given parent.
 fn spawn_background(parent: &mut ChildBuilder, asset_server: &Res<AssetServer>) {
     parent
         .spawn_bundle(ImageBundle {
@@ -131,9 +134,8 @@ fn spawn_background(parent: &mut ChildBuilder, asset_server: &Res<AssetServer>) 
         .insert(Background::Pitch1);
 }
 
+// Creates simple menu.
 fn init_menu_system(mut commands: Commands, asset_server: Res<AssetServer>) {
-    // Create simple menu, with StartGame and ExitGame buttons
-
     commands.spawn_bundle(UiCameraBundle::default());
 
     commands

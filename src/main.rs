@@ -12,6 +12,7 @@ const BALL_SPRITE: &str = "ball.png";
 const PITCH1_SPRITE: &str = "pitch1.png";
 const PITCH2_SPRITE: &str = "pitch2.png";
 const PITCH3_SPRITE: &str = "pitch3.png";
+const FONT: &str = "fonts/FiraSans-Regular.ttf";
 
 // Constants
 const MAX_SPEED: f32 = 3.0;
@@ -61,7 +62,7 @@ pub enum GameState {
 
 fn main() {
     App::new()
-        // Set background color to green.
+        // First, we initialize the menu.
         .add_state(GameState::InMenu)
         .insert_resource(ClearColor(Color::rgb(0.04, 0.04, 0.04)))
         .insert_resource(WindowDescriptor {
@@ -73,19 +74,6 @@ fn main() {
         })
         .add_plugins(DefaultPlugins)
         .add_plugin(menu::Menu)
-        // .add_startup_system(spawn_players_system)
-        // .add_startup_system(spawn_ball_system)
-        // .add_system(player_red_keyboard_system)
-        // .add_system(player_blue_keyboard_system)
-        // .add_system(movement_system)
-        // .add_system(collision_system_red)
-        // .add_system(collision_system_blue)
-        // .add_system(players_collision_system)
-        // .add_system(control_ball_velocity)
-        // .add_system(edge_collision_system)
-        // .add_system(corner_collision_system)
-        // .add_system(goal_system)
-        //add above systems form state InGame
         .add_system_set(
             SystemSet::on_enter(GameState::InGame)
                 .with_system(init_game_system)
@@ -108,6 +96,7 @@ fn main() {
         .run();
 }
 
+// Initialize the game state.
 fn init_game_system(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
@@ -116,7 +105,7 @@ fn init_game_system(
     // Init camera.
     commands.spawn_bundle(OrthographicCameraBundle::new_2d());
 
-    let font = asset_server.load("fonts/FiraSans-Regular.ttf");
+    let font = asset_server.load(FONT);
     let text_style = TextStyle {
         font,
         font_size: 60.0,
@@ -127,7 +116,7 @@ fn init_game_system(
         horizontal: HorizontalAlign::Center,
     };
 
-    // Show score on the screen (on the top left corner)
+    // Show score on the screen (on the bottom left corner)
     let score_text = String::from("Score: 0–0");
     commands.spawn_bundle(Text2dBundle {
         text: Text {
@@ -148,7 +137,8 @@ fn init_game_system(
         visibility: Visibility { is_visible: true },
     });
     let (_, background_type) = background_query.iter().next().unwrap();
-    // Set background as PITCH1_SPRITE
+
+    // Set pitch as selected in the menu.
     let pitch = match background_type {
         Background::Pitch1 => PITCH1_SPRITE,
         Background::Pitch2 => PITCH2_SPRITE,
@@ -164,9 +154,11 @@ fn init_game_system(
         ..Default::default()
     });
 
+    // Score as a resource.
     commands.insert_resource(Score { red: 0, blue: 0 });
 }
 
+// Spawns the players.
 fn spawn_players_system(mut commands: Commands, asset_server: Res<AssetServer>) {
     // Spawn red circle that'll be representing first player.
     commands
@@ -174,7 +166,6 @@ fn spawn_players_system(mut commands: Commands, asset_server: Res<AssetServer>) 
             texture: asset_server.load(PLAYER_RED_SPRITE),
             //Move the player to the left side.
             transform: Transform::from_translation(Vec3::new(RED_INITIAL_X, 0.0, 5.0)),
-
             ..Default::default()
         })
         .insert(PlayerRed)
@@ -208,6 +199,7 @@ fn spawn_ball_system(mut commands: Commands, asset_server: Res<AssetServer>) {
         .insert(Radius(BALL_RADIUS));
 }
 
+// Slows down the ball.
 fn control_ball_velocity(mut query: Query<&mut Velocity, With<Ball>>) {
     // Get ball velocity.
     let mut velocity = query.iter_mut().next().unwrap();
@@ -229,6 +221,7 @@ fn control_ball_velocity(mut query: Query<&mut Velocity, With<Ball>>) {
     };
 }
 
+// Parses keyboard input and changes velocity of the red player.
 fn player_red_keyboard_system(
     kb: Res<Input<KeyCode>>,
     mut query: Query<&mut Velocity, With<PlayerRed>>,
@@ -264,6 +257,7 @@ fn player_red_keyboard_system(
     }
 }
 
+// Parses keyboard input and changes velocity of the blue player.
 fn player_blue_keyboard_system(
     kb: Res<Input<KeyCode>>,
     mut query: Query<&mut Velocity, With<PlayerBlue>>,
@@ -299,6 +293,7 @@ fn player_blue_keyboard_system(
     }
 }
 
+// Changes the position of the entities, based on their velocity.
 fn movement_system(mut query: Query<(&Velocity, &mut Transform)>) {
     for (velocity, mut transform) in query.iter_mut() {
         let translation = &mut transform.translation;
@@ -307,10 +302,12 @@ fn movement_system(mut query: Query<(&Velocity, &mut Transform)>) {
     }
 }
 
+// Calculates new velocity vectors after collision.
+// Using some math formulas from the internet.
 // Inspired with: https://stackoverflow.com/questions/345838/ball-to-ball-collision-detection-and-handling
 fn handle_collision(
-    velocity_red: &mut Velocity,
-    velocity_blue: &mut Velocity,
+    velocity1: &mut Velocity,
+    velocity2: &mut Velocity,
     transform_red: &mut Transform,
     transform_blue: &mut Transform,
     radius1: f32,
@@ -328,36 +325,31 @@ fn handle_collision(
 
     let im1 = 1.;
     let im2 = 1.;
-    // TODO push-pull them apart
+
     transform_red.translation.x += mtd[0] * (im1 / (im1 + im2));
     transform_red.translation.y += mtd[1] * (im1 / (im1 + im2));
 
     transform_blue.translation.x -= mtd[0] * (im2 / (im1 + im2));
     transform_blue.translation.y -= mtd[1] * (im2 / (im1 + im2));
 
-    //impact speed
-    let v = Vec2::new(
-        velocity_red.x - velocity_blue.x,
-        velocity_red.y - velocity_blue.y,
-    );
+    let v = Vec2::new(velocity1.x - velocity2.x, velocity1.y - velocity2.y);
     let vn = v.dot(mtd.normalize());
 
     if vn > 0.0 {
         return;
     }
 
-    // collision impulse
     let i = (-(1.0 + 0.5) * vn) / (im1 + im2);
     let impulse = mtd.normalize() * i;
 
-    //change in momentum
-    velocity_red.x += impulse[0] * im1;
-    velocity_red.y += impulse[1] * im1;
+    velocity1.x += impulse[0] * im1;
+    velocity1.y += impulse[1] * im1;
 
-    velocity_blue.x -= impulse[0] * im2;
-    velocity_blue.y -= impulse[1] * im2;
+    velocity2.x -= impulse[0] * im2;
+    velocity2.y -= impulse[1] * im2;
 }
 
+// Detects collision between red player and the ball.
 fn collision_system_red(
     mut query_red: Query<(&mut Velocity, &mut Transform, &PlayerRed), Without<Ball>>,
     mut query_ball: Query<(&mut Velocity, &mut Transform, &Ball, Without<PlayerRed>)>,
@@ -366,7 +358,6 @@ fn collision_system_red(
     let (mut velocity_red, mut transform_red, _) = query_red.iter_mut().next().unwrap();
     let (mut velocity_ball, mut transform_ball, _, _) = query_ball.iter_mut().next().unwrap();
 
-    // If player red and ball collide
     let player_ball_distance = transform_red
         .translation
         .distance(transform_ball.translation);
@@ -392,6 +383,7 @@ fn collision_system_red(
     }
 }
 
+// Detects collision between blue player and the ball.
 fn collision_system_blue(
     mut query_blue: Query<(&mut Velocity, &mut Transform, &PlayerBlue), Without<Ball>>,
     mut query_ball: Query<(&mut Velocity, &mut Transform, &Ball, Without<PlayerBlue>)>,
@@ -400,12 +392,11 @@ fn collision_system_blue(
     let (mut velocity_blue, mut transform_blue, _) = query_blue.iter_mut().next().unwrap();
     let (mut velocity_ball, mut transform_ball, _, _) = query_ball.iter_mut().next().unwrap();
 
-    // If player blue and ball collide
     let player_ball_distance = transform_blue
         .translation
         .distance(transform_ball.translation);
     if player_ball_distance < PLAYER_RADIUS + BALL_RADIUS {
-        // If right control pressed, shoot the ball
+        // If right control pressed, shoot the ball.
         if kb.pressed(KeyCode::RControl) {
             let diff_x = transform_blue.translation.x - transform_ball.translation.x;
             let diff_y = transform_blue.translation.y - transform_ball.translation.y;
@@ -425,6 +416,7 @@ fn collision_system_blue(
     }
 }
 
+// Handles collision between the players.
 fn players_collision_system(
     mut query_red: Query<(&mut Velocity, &mut Transform, &PlayerRed), Without<PlayerBlue>>,
     mut query_blue: Query<(&mut Velocity, &mut Transform, &PlayerBlue), Without<PlayerRed>>,
@@ -448,6 +440,7 @@ fn players_collision_system(
     };
 }
 
+// Handles collision between the players and corners of the goal.
 fn corner_collision_system(mut query: Query<(&mut Velocity, &Transform, &Radius)>) {
     let corner1 = Vec3::new(-WINDOW_WIDTH / 2., CORNER_UP_HEIGHT, 5.);
     let corner2 = Vec3::new(WINDOW_WIDTH / 2., CORNER_UP_HEIGHT, 5.);
@@ -481,6 +474,7 @@ fn corner_collision_system(mut query: Query<(&mut Velocity, &Transform, &Radius)
     }
 }
 
+// Handles collision between players and edges of the pitch.
 fn edge_collision_system(mut query: Query<(&mut Velocity, &Transform, &Radius)>) {
     for (mut velocity, transform, radius) in query.iter_mut() {
         let translation = transform.translation;
@@ -504,6 +498,8 @@ fn edge_collision_system(mut query: Query<(&mut Velocity, &Transform, &Radius)>)
     }
 }
 
+// Check if there was a goal.
+// If there was, update the score.
 fn goal_system(
     mut query_ball: Query<(&mut Velocity, &mut Transform, &Ball)>,
     mut query_players: Query<(&mut Velocity, &mut Transform), Without<Ball>>,
