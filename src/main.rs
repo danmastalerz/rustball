@@ -1,11 +1,17 @@
 use bevy::math::vec3;
 use bevy::prelude::*;
 
+mod menu;
+
+use menu::Background;
+
 // Assets
 const PLAYER_RED_SPRITE: &str = "player_red.png";
 const PLAYER_BLUE_SPRITE: &str = "player_blue.png";
 const BALL_SPRITE: &str = "ball.png";
 const PITCH1_SPRITE: &str = "pitch1.png";
+const PITCH2_SPRITE: &str = "pitch2.png";
+const PITCH3_SPRITE: &str = "pitch3.png";
 
 // Constants
 const SCALE : f32 = 0.5;
@@ -49,31 +55,57 @@ pub struct Score {
 #[derive(Component)]
 struct ScoreText(String);
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Copy)]
+pub enum GameState {
+    InMenu,
+    InGame
+}
 
 fn main() {
     App::new()
         // Set background color to green.
+        .add_state(GameState::InMenu)
         .insert_resource(ClearColor(Color::rgb(0.04, 0.04, 0.04)))
         .insert_resource(WindowDescriptor {
             title: "RustBall".to_string(),
             width: 1024.0,
             height: 768.0,
+            resizable: false,
             ..Default::default()
         })
         .add_plugins(DefaultPlugins)
-        .add_startup_system(init_game_system)
-        .add_startup_system(spawn_players_system)
-        .add_startup_system(spawn_ball_system)
-        .add_system(player_red_keyboard_system)
-        .add_system(player_blue_keyboard_system)
-        .add_system(movement_system)
-        .add_system(collision_system_red)
-        .add_system(collision_system_blue)
-        .add_system(players_collision_system)
-        .add_system(control_ball_velocity)
-        .add_system(edge_collision_system)
-        .add_system(corner_collision_system)
-        .add_system(goal_system)
+        .add_plugin(menu::Menu)
+        // .add_startup_system(spawn_players_system)
+        // .add_startup_system(spawn_ball_system)
+        // .add_system(player_red_keyboard_system)
+        // .add_system(player_blue_keyboard_system)
+        // .add_system(movement_system)
+        // .add_system(collision_system_red)
+        // .add_system(collision_system_blue)
+        // .add_system(players_collision_system)
+        // .add_system(control_ball_velocity)
+        // .add_system(edge_collision_system)
+        // .add_system(corner_collision_system)
+        // .add_system(goal_system)
+        //add above systems form state InGame
+        .add_system_set(SystemSet::on_enter(GameState::InGame)
+            .with_system(init_game_system)
+            .with_system(spawn_players_system)
+            .with_system(spawn_ball_system))
+        .add_system_set(
+            SystemSet::on_update(GameState::InGame)
+
+                .with_system(player_red_keyboard_system)
+                .with_system(player_blue_keyboard_system)
+                .with_system(movement_system)
+                .with_system(collision_system_red)
+                .with_system(collision_system_blue)
+                .with_system(players_collision_system)
+                .with_system(control_ball_velocity)
+                .with_system(edge_collision_system)
+                .with_system(corner_collision_system)
+                .with_system(goal_system)
+        )
         .run();
 }
 
@@ -82,6 +114,7 @@ fn init_game_system(
     asset_server: Res<AssetServer>,
     mut texture_atlases: ResMut<Assets<TextureAtlas>>,
     mut windows: ResMut<Windows>,
+    mut background_query: Query<(Entity, &Background)>,
 ) {
     // Init camera.
     commands.spawn_bundle(OrthographicCameraBundle::new_2d());
@@ -117,11 +150,15 @@ fn init_game_system(
                 is_visible: true,
             }
         });
-
+    let (_ , background_type) = background_query.iter().next().unwrap();
     // Set background as PITCH1_SPRITE
-    let pitch1 = asset_server.load(PITCH1_SPRITE);
+    let pitch = match background_type {
+        Background::Pitch1 => PITCH1_SPRITE,
+        Background::Pitch2 => PITCH2_SPRITE,
+        Background::Pitch3 => PITCH3_SPRITE,
+    };
     commands.spawn_bundle(SpriteBundle {
-        texture: pitch1,
+        texture: asset_server.load(pitch),
         transform: Transform {
             translation: vec3(0.0, 0.0, 1.0),
             ..Default::default()
