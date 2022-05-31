@@ -38,7 +38,7 @@ fn despawn_menu(mut commands: Commands, query: Query<Entity>, query_background: 
 fn handle_start_game(
     mut app_exit_events: EventWriter<AppExit>,
     mut app_state: ResMut<State<GameState>>,
-    mut query: Query<
+    query: Query<
         (&Interaction, &MenuItem),
         Changed<Interaction>,
     >,

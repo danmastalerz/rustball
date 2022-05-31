@@ -112,9 +112,7 @@ fn main() {
 fn init_game_system(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
-    mut texture_atlases: ResMut<Assets<TextureAtlas>>,
-    mut windows: ResMut<Windows>,
-    mut background_query: Query<(Entity, &Background)>,
+    background_query: Query<(Entity, &Background)>,
 ) {
     // Init camera.
     commands.spawn_bundle(OrthographicCameraBundle::new_2d());
@@ -183,8 +181,6 @@ fn init_game_system(
 fn spawn_players_system(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
-    mut texture_atlases: ResMut<Assets<TextureAtlas>>,
-    mut windows: ResMut<Windows>,
 ) {
     // Spawn red circle that'll be representing first player.
     commands.spawn_bundle((SpriteBundle {
@@ -218,8 +214,6 @@ fn spawn_players_system(
 fn spawn_ball_system(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
-    mut texture_atlases: ResMut<Assets<TextureAtlas>>,
-    mut windows: ResMut<Windows>,
 ) {
     // Spawn ball.
     commands.spawn_bundle((SpriteBundle {
@@ -344,10 +338,9 @@ fn player_blue_keyboard_system(
 }
 
 fn movement_system(
-    mut commands: Commands,
-    mut query: Query<(Entity, &Velocity, &mut Transform)>
+    mut query: Query<(&Velocity, &mut Transform)>
 ) {
-    for (entity, velocity, mut transform) in query.iter_mut() {
+    for (velocity, mut transform) in query.iter_mut() {
         let translation = &mut transform.translation;
         translation.x += velocity.x;
         translation.y += velocity.y;
@@ -399,12 +392,12 @@ fn handle_collision(velocity_red : &mut Velocity, velocity_blue : &mut Velocity,
 }
 
 fn collision_system_red(
-    mut query_red: Query<(Entity, &mut Velocity, &mut Transform, &PlayerRed), Without<Ball>>,
-    mut query_ball: Query<(Entity, &mut Velocity, &mut Transform, &Ball, Without<PlayerRed>)>,
+    mut query_red: Query<(&mut Velocity, &mut Transform, &PlayerRed), Without<Ball>>,
+    mut query_ball: Query<(&mut Velocity, &mut Transform, &Ball, Without<PlayerRed>)>,
     kb: Res<Input<KeyCode>>,
 ) {
-    let (entity_red, mut velocity_red, mut transform_red, _) = query_red.iter_mut().next().unwrap();
-    let (entity_ball, mut velocity_ball, mut transform_ball, _, _) = query_ball.iter_mut().next().unwrap();
+    let (mut velocity_red, mut transform_red, _) = query_red.iter_mut().next().unwrap();
+    let (mut velocity_ball, mut transform_ball, _, _) = query_ball.iter_mut().next().unwrap();
 
     // If player red and ball collide
     let player_ball_distance = transform_red.translation.distance(transform_ball.translation);
@@ -425,12 +418,12 @@ fn collision_system_red(
 }
 
 fn collision_system_blue(
-    mut query_blue: Query<(Entity, &mut Velocity, &mut Transform, &PlayerBlue), Without<Ball>>,
-    mut query_ball: Query<(Entity, &mut Velocity, &mut Transform, &Ball, Without<PlayerBlue>)>,
+    mut query_blue: Query<(&mut Velocity, &mut Transform, &PlayerBlue), Without<Ball>>,
+    mut query_ball: Query<(&mut Velocity, &mut Transform, &Ball, Without<PlayerBlue>)>,
     kb: Res<Input<KeyCode>>,
 ) {
-    let (entity_blue, mut velocity_blue, mut transform_blue, _) = query_blue.iter_mut().next().unwrap();
-    let (entity_ball, mut velocity_ball, mut transform_ball, _, _) = query_ball.iter_mut().next().unwrap();
+    let (mut velocity_blue, mut transform_blue, _) = query_blue.iter_mut().next().unwrap();
+    let (mut velocity_ball, mut transform_ball, _, _) = query_ball.iter_mut().next().unwrap();
 
     // If player blue and ball collide
     let player_ball_distance = transform_blue.translation.distance(transform_ball.translation);
@@ -453,11 +446,11 @@ fn collision_system_blue(
 
 
 fn players_collision_system(
-    mut query_red: Query<(Entity, &mut Velocity, &mut Transform, &PlayerRed), Without<PlayerBlue>>,
-    mut query_blue: Query<(Entity, &mut Velocity, &mut Transform, &PlayerBlue), Without<PlayerRed>>,
+    mut query_red: Query<(&mut Velocity, &mut Transform, &PlayerRed), Without<PlayerBlue>>,
+    mut query_blue: Query<(&mut Velocity, &mut Transform, &PlayerBlue), Without<PlayerRed>>,
 ) {
-    let (entity_red, mut velocity_red, mut transform_red, _) = query_red.iter_mut().next().unwrap();
-    let (entity_blue, mut velocity_blue, mut transform_blue, _) = query_blue.iter_mut().next().unwrap();
+    let (mut velocity_red, mut transform_red, _) = query_red.iter_mut().next().unwrap();
+    let (mut velocity_blue, mut transform_blue, _) = query_blue.iter_mut().next().unwrap();
 
     // If player red and player blue collide
     let players_distance = transform_red.translation.distance(transform_blue.translation);
@@ -469,7 +462,7 @@ fn players_collision_system(
 }
 
 fn corner_collision_system(
-    mut query: Query<(Entity, &mut Velocity, &Transform, &Radius)>
+    mut query: Query<(&mut Velocity, &Transform, &Radius)>
 ) {
     let corner1 = Vec3::new(- 1024. / 2., 100., 5.);
     let corner2 = Vec3::new(1024. / 2., 100., 5.);
@@ -477,8 +470,7 @@ fn corner_collision_system(
     let corner4 = Vec3::new(- 1024. / 2., -100., 5.);
 
 
-    for (entity, mut velocity, transform, radius) in query.iter_mut() {
-        let position = &transform.translation;
+    for (mut velocity, transform, radius) in query.iter_mut() {
         let radius = radius.0;
 
         let d1 = transform.translation.distance(corner1);
@@ -506,38 +498,38 @@ fn corner_collision_system(
 }
 
 fn edge_collision_system(
-    mut query: Query<(Entity, &mut Velocity, &Transform, &Radius)>
+    mut query: Query<(&mut Velocity, &Transform, &Radius)>
 ) {
 
-    let (WINDOW_WIDTH, WINDOW_HEIGHT) = (1024., 768.);
+    let (window_width, window_height) = (1024., 768.);
 
-    for (entity, mut velocity, transform, radius) in query.iter_mut() {
+    for (mut velocity, transform, radius) in query.iter_mut() {
 
         let translation = transform.translation.clone();
         let radius = radius.0;
 
-        if translation.x + radius >= WINDOW_WIDTH / 2. && ((translation.y >= 100.0 || translation.y <= -100.0) || radius == PLAYER_RADIUS) {
+        if translation.x + radius >= window_width / 2. && ((translation.y >= 100.0 || translation.y <= -100.0) || radius == PLAYER_RADIUS) {
             velocity.x = -velocity.x;
-        } else if translation.x - radius <= -WINDOW_WIDTH / 2. && ((translation.y >= 100.0 || translation.y <= -100.0) || radius == PLAYER_RADIUS){
+        } else if translation.x - radius <= -window_width / 2. && ((translation.y >= 100.0 || translation.y <= -100.0) || radius == PLAYER_RADIUS){
             velocity.x = -velocity.x;
         }
 
-        if translation.y + radius >= WINDOW_HEIGHT / 2. && ((translation.y >= 100.0 || translation.y <= -100.0) || radius == PLAYER_RADIUS) {
+        if translation.y + radius >= window_height / 2. && ((translation.y >= 100.0 || translation.y <= -100.0) || radius == PLAYER_RADIUS) {
             velocity.y = -velocity.y;
-        } else if translation.y - radius <= -WINDOW_HEIGHT / 2. && ((translation.y >= 100.0 || translation.y <= -100.0) || radius == PLAYER_RADIUS) {
+        } else if translation.y - radius <= -window_height / 2. && ((translation.y >= 100.0 || translation.y <= -100.0) || radius == PLAYER_RADIUS) {
             velocity.y = -velocity.y;
         }
     }
 }
 
 fn goal_system(
-    mut query_ball: Query<(Entity, &mut Velocity, &mut Transform, &Ball)>,
-    mut query_players: Query<(Entity, &mut Velocity, &mut Transform), Without<Ball>>,
+    mut query_ball: Query<(&mut Velocity, &mut Transform, &Ball)>,
+    mut query_players: Query<(&mut Velocity, &mut Transform), Without<Ball>>,
     mut score: ResMut<Score>,
     mut score_text: Query<(&mut Text)>,
 ) {
     // Get tuple from query
-    let (entity_ball, mut velocity_ball, mut transform_ball, _) = query_ball.iter_mut().next().unwrap();
+    let (mut velocity_ball, mut transform_ball, _) = query_ball.iter_mut().next().unwrap();
 
     // Get text from score_text
     let mut text = score_text.iter_mut().next().unwrap();
@@ -554,7 +546,7 @@ fn goal_system(
         velocity_ball.x = 0.;
         velocity_ball.y = 0.;
         let mut i = -200.0;
-        for (entity, mut velocity, mut transform) in query_players.iter_mut() {
+        for (mut velocity, mut transform) in query_players.iter_mut() {
             velocity.x = 0.;
             velocity.y = 0.;
             transform.translation.x = i.clone();
@@ -572,7 +564,7 @@ fn goal_system(
         velocity_ball.y = 0.;
 
         let mut i = -200.0;
-        for (entity, mut velocity, mut transform) in query_players.iter_mut() {
+        for (mut velocity, mut transform) in query_players.iter_mut() {
             velocity.x = 0.;
             velocity.y = 0.;
             transform.translation.x = i.clone();
